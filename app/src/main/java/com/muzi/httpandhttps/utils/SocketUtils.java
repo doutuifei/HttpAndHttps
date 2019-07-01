@@ -45,24 +45,24 @@ public class SocketUtils {
 
         //请求行
         String requestLine = streamUtils.readLine(inputStream);
-        System.out.println("请求行-->" + requestLine);
+        System.out.println("响应行-->" + requestLine);
 
         //请求头
         Map<String, String> headers = streamUtils.readHeaders(inputStream);
         Set<Map.Entry<String, String>> entrySet = headers.entrySet();
         for (Map.Entry<String, String> entry : entrySet) {
-            System.out.println("请求头-->" + entry.getKey() + ":" + entry.getValue());
+            System.out.println("响应头-->" + entry.getKey() + ":" + entry.getValue());
         }
 
         //读响应体 ? 需要区分是以 Content-Length 还是以 Chunked分块编码
         if (headers.containsKey("Content-Length")) {
             int length = Integer.valueOf(headers.get("Content-Length"));
             byte[] bytes = streamUtils.readBytes(inputStream, length);
-            System.out.println("响应-->" + new String(bytes));
+            System.out.println("响应实体-->" + new String(bytes));
         } else {
             //分块编码
             String response = streamUtils.readChunked(inputStream);
-            System.out.println("响应-->" + response);
+            System.out.println("响应实体-->" + response);
         }
     }
 
