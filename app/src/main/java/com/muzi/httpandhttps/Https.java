@@ -1,7 +1,7 @@
 package com.muzi.httpandhttps;
 
 import com.muzi.httpandhttps.utils.AccountUtils;
-import com.muzi.httpandhttps.utils.SocketUtils;
+import com.muzi.httpandhttps.utils.HttpUtils;
 
 /**
  * 作者: lipeng
@@ -12,7 +12,7 @@ import com.muzi.httpandhttps.utils.SocketUtils;
 public class Https {
 
     public static void main(String[] args) {
-        SocketUtils.post(AccountUtils.URL, AccountUtils.getParams(), false);
+        HttpUtils.post(AccountUtils.URL, AccountUtils.getParams(), true);
     }
 
 }

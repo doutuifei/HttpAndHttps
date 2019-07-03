@@ -1,155 +1,91 @@
 package com.muzi.httpandhttps.utils;
 
-import com.muzi.httpandhttps.enums.Method;
-
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.MalformedURLException;
+import java.io.IOException;
 import java.net.Socket;
 import java.net.URL;
-import java.net.URLEncoder;
-import java.util.Map;
-import java.util.Set;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 
+import javax.net.ssl.X509TrustManager;
+
+/**
+ * 作者: lipeng
+ * 时间: 2019/7/3
+ * 邮箱: lipeng@moyi365.com
+ * 功能:
+ */
 public class SocketUtils {
 
-    private static String cerPath = "C:\\Users\\mzyq\\Desktop\\ekwing.cer";
+    public static int TIME_OUT = 30000;
+    public static String cerPath = "C:\\Users\\mzyq\\Desktop\\cer\\error.cer";
 
-    public static void get(String address, Map<String, String> params, boolean isHttps) {
-        try {
-            request(Method.GET, address, params, isHttps);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void post(String address, Map<String, String> params, boolean isHttps) {
-        try {
-            request(Method.POST, address, params, isHttps);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void request(Method method, String address, Map<String, String> params, boolean isHttps) throws Exception {
-        Socket socket = getSocket(address, isHttps);
-        byte[] messageBytes = getRequstByte(method, address, params);
-        OutputStream outputStream = socket.getOutputStream();
-        InputStream inputStream = socket.getInputStream();
-        outputStream.write(messageBytes);
-        outputStream.flush();
-
-        InputStreamUtils streamUtils = new InputStreamUtils();
-
-        //请求行
-        String requestLine = streamUtils.readLine(inputStream);
-        System.out.println("响应行-->" + requestLine);
-
-        //请求头
-        Map<String, String> headers = streamUtils.readHeaders(inputStream);
-        Set<Map.Entry<String, String>> entrySet = headers.entrySet();
-        for (Map.Entry<String, String> entry : entrySet) {
-            System.out.println("响应头-->" + entry.getKey() + ":" + entry.getValue());
-        }
-
-        //读响应体 ? 需要区分是以 Content-Length 还是以 Chunked分块编码
-        if (headers.containsKey("Content-Length")) {
-            int length = Integer.valueOf(headers.get("Content-Length"));
-            byte[] bytes = streamUtils.readBytes(inputStream, length);
-            System.out.println("响应实体-->" + new String(bytes));
-        } else {
-            //分块编码
-            String response = streamUtils.readChunked(inputStream);
-            System.out.println("响应实体-->" + response);
-        }
-    }
-
-    public static Socket getSocket(String address, boolean isHttps) throws Exception {
+    /**
+     * 使用自配置证书
+     *
+     * @param address
+     * @param isHttps
+     * @return
+     * @throws IOException
+     */
+    public static Socket getSocket(String address, boolean isHttps) throws IOException, NoSuchAlgorithmException, CertificateException, KeyStoreException, KeyManagementException {
         URL url = new URL(address);
-        Socket socket;
         String host = url.getHost();
+        Socket socket;
         int port = url.getPort() == -1 ? url.getDefaultPort() : url.getPort();
-        if (isHttps) {
-            File cerFile = new File(cerPath);
-            HttpsUtils.SSLParams sslSocketFactory = HttpsUtils.getSslSocketFactory(new FileInputStream(cerFile));
-            socket = sslSocketFactory.sSLSocketFactory.createSocket(host, port);
-        } else {
+        if (!isHttps) {
             port = 80;
             socket = new Socket(host, port);
+        } else {
+            File cerFile = new File(cerPath);
+            System.err.println("cer file->" + cerFile.exists());
+            FileInputStream inputStream = new FileInputStream(cerFile);
+            SSLUtils.SSLParams sslSocketFactory = SSLUtils.getSslSocketFactory(inputStream);
+            socket = sslSocketFactory.sSLSocketFactory.createSocket(host, port);
+
+
+//            SSLContext tls = SSLContext.getInstance("TLS");
+//            //使用默认证书
+//            KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
+//            //去掉系统默认证书
+//            keystore.load(null);
+//            Certificate certificate =
+//                    CertificateFactory.getInstance("X.509").generateCertificate(inputStream);
+//            //设置自己的证书
+//            keystore.setCertificateEntry("dfsd", certificate);
+//            //通过信任管理器获取一个默认的算法
+//            String algorithm = TrustManagerFactory.getDefaultAlgorithm();
+//            //算法工厂创建
+//            TrustManagerFactory instance = TrustManagerFactory.getInstance(algorithm);
+//            instance.init(keystore);
+//            tls.init(null, instance.getTrustManagers(), null);
+//            SSLSocketFactory socketFactory = tls.getSocketFactory();
+//            socket = socketFactory.createSocket(host, port);
+
         }
-        socket.setSoTimeout(30000);
+        socket.setSoTimeout(TIME_OUT);
         return socket;
     }
 
-    public static byte[] getRequstByte(Method method, String address, Map<String, String> params) throws MalformedURLException {
+    /**
+     * 使用系统默认证书
+     *
+     * @param address
+     * @return
+     * @throws IOException
+     */
+    public static Socket getDefaultSocket(String address) throws IOException {
         URL url = new URL(address);
-
-        StringBuilder builder = new StringBuilder();
-
-        //请求行 GET relativePath HTTP/1.1
-        switch (method) {
-            case POST:
-                builder.append("POST ");
-                builder.append(url.getFile());
-                break;
-            case GET:
-                builder.append("GET ");
-                builder.append(url.getFile());
-                builder.append("?").append(getEncodeParams(params));
-                break;
-        }
-        builder.append(" HTTP/1.1");
-        builder.append("\r\n");
-
-        //请求头
-        builder.append("Host: " + url.getHost());
-        builder.append("\r\n");
-        builder.append("Connection: Keep-Alive");
-        builder.append("\r\n");
-        builder.append("Accept-Encoding: gzip");
-        builder.append("\r\n");
-        builder.append("Content-Type: application/x-www-form-urlencoded");
-        builder.append("\r\n");
-
-        //正文
-        switch (method) {
-            case POST:
-                String param = getEncodeParams(params);
-                //head length
-                builder.append("Content-Length: " + param.length());
-                builder.append("\r\n");
-                //空行
-                builder.append("\r\n");
-
-                //拼接参数
-                builder.append(param);
-                break;
-            case GET:
-                //空行
-                builder.append("\r\n");
-                break;
-        }
-        String string = builder.toString();
-        System.out.println(string);
-        return string.getBytes();
-    }
-
-    private static String getEncodeParams(Map<String, String> params) {
-        StringBuilder builder = new StringBuilder();
-        if (params != null && !params.isEmpty()) {
-            Set<Map.Entry<String, String>> entrySet = params.entrySet();
-            for (Map.Entry<String, String> entry : entrySet) {
-                String key = entry.getKey();
-                String value = entry.getValue();
-                String encodeKey = URLEncoder.encode(key);
-                String encodeValue = URLEncoder.encode(value);
-                builder.append(encodeKey).append("=").append(encodeValue).append("&");
-            }
-            builder.deleteCharAt(builder.length() - 1);
-        }
-        return builder.toString();
+        String host = url.getHost();
+        Socket socket;
+        int port = url.getPort() == -1 ? url.getDefaultPort() : url.getPort();
+        SSLUtils.SSLParams sslSocketFactory = SSLUtils.getSslSocketFactory((X509TrustManager) null);
+        socket = sslSocketFactory.sSLSocketFactory.createSocket(host, port);
+        socket.setSoTimeout(TIME_OUT);
+        return socket;
     }
 
 }
