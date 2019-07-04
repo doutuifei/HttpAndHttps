@@ -26,31 +26,9 @@ public class Request {
      * @param address
      * @param params
      * @param isHttps
-     * @throws Exception
      */
     public static void request(Method method, String address, Map<String, String> params, boolean isHttps) throws Exception {
         Socket socket = SocketUtils.getSocket(address, isHttps);
-        byte[] messageBytes = getParamsByte(method, address, params);
-        OutputStream outputStream = socket.getOutputStream();
-        InputStream inputStream = socket.getInputStream();
-        outputStream.write(messageBytes);
-        outputStream.flush();
-        Response.response(inputStream);
-        outputStream.close();
-        inputStream.close();
-        socket.close();
-    }
-
-    /**
-     * 使用系统证书
-     *
-     * @param method
-     * @param address
-     * @param params
-     * @throws Exception
-     */
-    public static void requestDefault(Method method, String address, Map<String, String> params) throws Exception {
-        Socket socket = SocketUtils.getDefaultSocket(address);
         byte[] messageBytes = getParamsByte(method, address, params);
         OutputStream outputStream = socket.getOutputStream();
         InputStream inputStream = socket.getInputStream();
